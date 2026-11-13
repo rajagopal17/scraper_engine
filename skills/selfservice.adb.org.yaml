@@ -3,6 +3,7 @@ domain: selfservice.adb.org
 created_at: '2026-11-13'
 last_verified_at: '2026-11-13'
 fetch_method: rendered
+multi_record: true
 fields:
   project_details:
     method: ai_judged
@@ -11,13 +12,8 @@ fields:
     rule: null
     ai_prompt: This page lists many ADB Consulting Services Recruitment Notices
       (CSRN), one per project (Project, Expertise, Consultant Type, Engagement
-      Period, Published, Deadline columns), in a fixed top-to-bottom order.
-      Selection rule (apply this exact rule, so every field extracted from this
-      page refers to the same listing) -- scan the listings from the TOP of the
-      page downward and pick the FIRST one that fits the non-capital-intensive
-      screening criteria; do not pick by relevance, size, or any other
-      preference. Summarize that listing's project and the consulting role
-      being advertised for it.
+      Period, Published, Deadline columns). Summarize the project and the
+      consulting role being advertised for it.
     literal_value: null
   source_url:
     method: literal
@@ -31,14 +27,8 @@ fields:
     selector: null
     attribute: null
     rule: null
-    ai_prompt: This page lists many ADB Consulting Services Recruitment Notices
-      (CSRN), one per project, in a fixed top-to-bottom order. Selection rule
-      (apply this exact rule, so every field extracted from this page refers to
-      the same listing) -- scan the listings from the TOP of the page downward
-      and pick the FIRST one that fits the non-capital-intensive screening
-      criteria; do not pick by relevance, size, or any other preference. The
-      project titles carry a country code (e.g. PHI, GEO, UZB, IND, CAM, REG
-      for regional). Give the country/region for that one listing.
+    ai_prompt: The project titles carry a country code (e.g. PHI, GEO, UZB, IND,
+      CAM, REG for regional). Give the country/region for this listing.
     literal_value: null
   active:
     method: rule
@@ -52,14 +42,8 @@ fields:
     selector: null
     attribute: null
     rule: null
-    ai_prompt: This page lists many ADB Consulting Services Recruitment Notices
-      (CSRN), one per project, in a fixed top-to-bottom order. Selection rule
-      (apply this exact rule, so every field extracted from this page refers to
-      the same listing) -- scan the listings from the TOP of the page downward
-      and pick the FIRST one that fits the non-capital-intensive screening
-      criteria; do not pick by relevance, size, or any other preference. Each
-      listing shows two dates, "Published" (when it was posted) and "Deadline"
-      (when applications close) -- give that one listing's "Published" date
+    ai_prompt: This listing shows two dates, "Published" (when it was posted)
+      and "Deadline" (when applications close) -- give the "Published" date
       only, not the deadline, formatted as YYYY-MM-DD.
     literal_value: null
   end_date:
@@ -67,13 +51,7 @@ fields:
     selector: null
     attribute: null
     rule: null
-    ai_prompt: This page lists many ADB Consulting Services Recruitment Notices
-      (CSRN), one per project, in a fixed top-to-bottom order. Selection rule
-      (apply this exact rule, so every field extracted from this page refers to
-      the same listing) -- scan the listings from the TOP of the page downward
-      and pick the FIRST one that fits the non-capital-intensive screening
-      criteria; do not pick by relevance, size, or any other preference. Give
-      that one listing's "Deadline" date (format YYYY-MM-DD).
+    ai_prompt: Give this listing's "Deadline" date (format YYYY-MM-DD).
     literal_value: null
 dedup_key_fields:
 - project_details

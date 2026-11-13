@@ -45,6 +45,12 @@ class Skill(BaseModel):
     last_verified_at: str
     fetch_method: FetchMethod = "static"
     fields: dict[str, FieldSpec] = Field(default_factory=dict)
+    # False (default): the page is one opportunity -> one record, extracted
+    # field-by-field (extract_record). True: the page lists many opportunities
+    # (e.g. a tenders/jobs table) -> every one that fits the screening
+    # criteria is extracted as its own record, in one combined AI call
+    # (extract_multi_records) rather than one call per field per row.
+    multi_record: bool = False
     dedup_key_fields: list[str] | None = None  # natural key; None => content hash fallback
     auth: AuthConfig = Field(default_factory=AuthConfig)
     pagination: PaginationConfig = Field(default_factory=PaginationConfig)

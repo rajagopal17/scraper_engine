@@ -8,7 +8,7 @@ from . import db
 from .config import Settings, CONTEXT_FILE, OUTPUT_DIR, SKILLS_DIR, URLS_FILE
 from .dedup import compute_record_key
 from .export import export_run
-from .extract import AiCallBudget, extract_record
+from .extract import AiCallBudget, extract_multi_records, extract_record
 from .fetch import NonRetryableFetchError, fetch
 from .inputs import load_context, load_urls
 from .llm import LLMClient
@@ -59,13 +59,18 @@ def run_all(settings: Settings, only_url: str | None = None) -> None:
                 rate_limiter.wait(domain)
                 html = fetch(url, settings, skill.fetch_method, skill.auth)
 
-                data = extract_record(html, url, skill, context, settings, llm, budget)
-                rows_found = 1
-                validation = validate_record(data)
-                if not validation.ok:
-                    rows_rejected = 1
-                    logger.warning("rejected record from %s: %s", url, validation.reasons)
-                else:
+                records = (
+                    extract_multi_records(html, url, skill, context, settings, llm, budget)
+                    if skill.multi_record
+                    else [extract_record(html, url, skill, context, settings, llm, budget)]
+                )
+                rows_found = len(records)
+                for data in records:
+                    validation = validate_record(data)
+                    if not validation.ok:
+                        rows_rejected += 1
+                        logger.warning("rejected record from %s: %s", url, validation.reasons)
+                        continue
                     record_key, key_type = compute_record_key(data, skill.dedup_key_fields)
                     result = db.upsert_record(conn, url, domain, record_key, key_type, data)
                     rows_new += result == "new"

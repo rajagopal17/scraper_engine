@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from scraper_engine.config import Settings
-from scraper_engine.extract import AiCallBudget, _clean_ai_field_value, extract_record
+from scraper_engine.extract import AiCallBudget, _clean_ai_field_value, extract_multi_records, extract_record
 from scraper_engine.models import FieldSpec, Skill
 
 FIXTURE = (Path(__file__).resolve().parent.parent / "fixtures" / "sample_ngo_page.html").read_text(encoding="utf-8")
@@ -160,3 +160,65 @@ def test_ai_judged_field_uses_low_temperature():
     extract_record(FIXTURE, "https://ngo-example.org/projects/1", skill, "context", Settings(), llm, budget)
 
     assert llm.last_kwargs.get("temperature") == 0.1
+
+
+def _multi_skill() -> Skill:
+    return Skill(
+        url="https://tenders.example.org/list",
+        domain="tenders.example.org",
+        created_at="2026-01-01",
+        last_verified_at="2026-01-01",
+        fetch_method="rendered",
+        multi_record=True,
+        fields={
+            "project_details": FieldSpec(method="ai_judged", ai_prompt="Summarize the listing."),
+            "source_url": FieldSpec(method="literal", literal_value="$url"),
+            "region": FieldSpec(method="ai_judged", ai_prompt="Give the country."),
+            "active": FieldSpec(method="rule", rule="end_date >= run_date -> true; else -> false"),
+            "end_date": FieldSpec(method="ai_judged", ai_prompt="Give the deadline, YYYY-MM-DD."),
+        },
+        dedup_key_fields=["project_details"],
+    )
+
+
+def test_multi_record_extraction_returns_one_record_per_json_array_item():
+    skill = _multi_skill()
+    budget = AiCallBudget(per_site_limit=10, per_run_limit=10)
+    llm = _FakeLLM(
+        '[{"project_details": "Training program A", "region": "KEN", "end_date": "2099-01-01"},'
+        ' {"project_details": "Consultancy B", "region": "IND", "end_date": "2020-01-01"}]'
+    )
+    records = extract_multi_records(FIXTURE, "https://tenders.example.org/list", skill, "context", Settings(), llm, budget)
+
+    assert len(records) == 2
+    assert records[0]["project_details"] == "Training program A"
+    assert records[0]["source_url"] == "https://tenders.example.org/list"
+    assert records[0]["active"] is True  # end_date in the future
+    assert records[1]["region"] == "IND"
+    assert records[1]["active"] is False  # end_date in the past
+    assert llm.calls == 1  # one combined call, not one per field per row
+
+
+def test_multi_record_extraction_empty_array_returns_no_records():
+    skill = _multi_skill()
+    budget = AiCallBudget(per_site_limit=10, per_run_limit=10)
+    llm = _FakeLLM("[]")
+    records = extract_multi_records(FIXTURE, "https://tenders.example.org/list", skill, "context", Settings(), llm, budget)
+    assert records == []
+
+
+def test_multi_record_extraction_handles_non_json_response():
+    skill = _multi_skill()
+    budget = AiCallBudget(per_site_limit=10, per_run_limit=10)
+    llm = _FakeLLM("not json")
+    records = extract_multi_records(FIXTURE, "https://tenders.example.org/list", skill, "context", Settings(), llm, budget)
+    assert records == []
+
+
+def test_multi_record_extraction_skipped_once_budget_exhausted():
+    skill = _multi_skill()
+    budget = AiCallBudget(per_site_limit=0, per_run_limit=10)
+    llm = _FakeLLM("should not be used")
+    records = extract_multi_records(FIXTURE, "https://tenders.example.org/list", skill, "context", Settings(), llm, budget)
+    assert records == []
+    assert llm.calls == 0

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import date
@@ -137,3 +138,88 @@ def extract_record(
             data[name] = None
 
     return data
+
+
+def extract_multi_records(
+    html: str,
+    url: str,
+    skill: Skill,
+    context: str,
+    settings: Settings,
+    llm: LLMClient | None,
+    budget: AiCallBudget,
+) -> list[dict]:
+    """For a skill with multi_record=True: the page lists many opportunities
+    (e.g. a tenders/jobs table), and every one that fits the screening
+    criteria is extracted as its own record.
+
+    One combined AI call returns a JSON array covering every matching row,
+    rather than extract_record's one-call-per-field approach, which can only
+    ever describe a single row and (per-field calls having no shared state)
+    risks each field independently picking a different row on a page with
+    many candidates.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    page_text = soup.get_text(separator="\n", strip=True)
+
+    ai_fields = {name: spec for name, spec in skill.fields.items() if spec.method == "ai_judged" and spec.ai_prompt}
+    if llm is None or not ai_fields:
+        return []
+
+    try:
+        budget.consume(skill.domain)
+    except AiCallBudgetExceeded as exc:
+        logger.warning("skipping multi-record extraction for %s: %s", url, exc)
+        return []
+
+    field_lines = "\n".join(f'- "{name}": {spec.ai_prompt}' for name, spec in ai_fields.items())
+    field_keys = ", ".join(f'"{name}"' for name in ai_fields)
+    prompt = build_safe_user_prompt(
+        f"{context}\n\n"
+        "This page lists MULTIPLE opportunities, not just one. Identify EVERY "
+        "one that fits the screening criteria above -- do not stop at the "
+        "first match. When judging fit: only exclude items that clearly "
+        "involve heavy physical construction/infrastructure (roads, "
+        "buildings, hospitals). Training, consultancy, M&E, research, and "
+        "capacity-building work should be treated as fitting, not excluded.\n\n"
+        f"For each matching opportunity, extract these fields:\n{field_lines}\n\n"
+        f"Respond with ONLY a JSON array (no prose, no markdown fences). Each "
+        f"element is an object with exactly these keys: {field_keys}. If none "
+        "fit, respond with exactly: []",
+        page_text[:20000],
+    )
+    result = llm.complete(
+        model=settings.ai_runtime_model,
+        system="Respond with ONLY the JSON array described. No other text.",
+        user_content=prompt,
+        max_tokens=4096,
+        temperature=0.1,
+    )
+
+    try:
+        items = json.loads(result)
+    except json.JSONDecodeError as exc:
+        logger.error("multi-record extraction returned non-JSON output for %s: %s", url, exc)
+        return []
+    if not isinstance(items, list):
+        logger.error("multi-record extraction returned a non-list JSON value for %s", url)
+        return []
+
+    records: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        data: dict[str, object] = {}
+        for name in ai_fields:
+            value = item.get(name)
+            data[name] = _clean_ai_field_value(str(value), name) if value is not None else None
+        for name, spec in skill.fields.items():
+            if spec.method == "literal":
+                data[name] = url if name == "source_url" or spec.literal_value == "$url" else spec.literal_value
+            elif spec.method == "rule" and name == "active":
+                data[name] = compute_active(data.get("end_date") or data.get("deadline"), date.today())
+            elif name not in data:
+                data[name] = None
+        records.append(data)
+
+    return records
