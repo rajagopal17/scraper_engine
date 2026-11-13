@@ -32,6 +32,11 @@ def _int_env(name: str, default: int) -> int:
     return int(val) if val else default
 
 
+def _domain_set_env(name: str) -> frozenset[str]:
+    val = os.environ.get(name, "")
+    return frozenset(d.strip().lower() for d in val.split(",") if d.strip())
+
+
 def _str_env(name: str, default: str | None = None) -> str | None:
     """Env values are stripped: a stray leading/trailing space in .env (easy to
     introduce by hand) would otherwise silently break the URL/key/host."""
@@ -80,6 +85,13 @@ class Settings:
     max_ai_calls_per_site_per_run: int = field(default_factory=lambda: _int_env("MAX_AI_CALLS_PER_SITE_PER_RUN", 10))
     max_ai_calls_per_run: int = field(default_factory=lambda: _int_env("MAX_AI_CALLS_PER_RUN", 100))
     respect_robots_txt: bool = field(default_factory=lambda: _bool_env("RESPECT_ROBOTS_TXT", True))
+    # Explicit, named exceptions only -- a per-domain opt-out the operator
+    # chose deliberately (e.g. a site whose blanket "Disallow: /" covers
+    # content they have a legitimate reason to collect), never a global
+    # bypass. Comma-separated domains, matched against urlparse(url).netloc.
+    robots_txt_override_domains: frozenset[str] = field(
+        default_factory=lambda: _domain_set_env("ROBOTS_TXT_OVERRIDE_DOMAINS")
+    )
 
     @property
     def pg_dsn(self) -> str:

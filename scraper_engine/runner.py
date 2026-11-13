@@ -50,8 +50,11 @@ def run_all(settings: Settings, only_url: str | None = None) -> None:
                 continue
 
             try:
-                if settings.respect_robots_txt and not robots.is_allowed(url):
+                robots_overridden = domain in settings.robots_txt_override_domains
+                if settings.respect_robots_txt and not robots_overridden and not robots.is_allowed(url):
                     raise NonRetryableFetchError(f"disallowed by robots.txt: {url}")
+                if robots_overridden:
+                    logger.warning("robots.txt check overridden for %s (explicit operator exception)", domain)
 
                 rate_limiter.wait(domain)
                 html = fetch(url, settings, skill.fetch_method, skill.auth)
