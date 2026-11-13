@@ -1,0 +1,64 @@
+url: https://reliefweb.int/jobs
+domain: reliefweb.int
+created_at: '2026-11-13'
+last_verified_at: '2026-11-13'
+fetch_method: rendered
+fields:
+  project_details:
+    method: ai_judged
+    selector: null
+    attribute: null
+    rule: null
+    ai_prompt: Summarize the non-capital-intensive aspects of the project listings
+      from the ReliefWeb jobs page, focusing on education, health, and community engagement.
+    literal_value: null
+  source_url:
+    method: literal
+    selector: null
+    attribute: null
+    rule: null
+    ai_prompt: null
+    literal_value: https://reliefweb.int/jobs
+  region:
+    method: selector
+    selector: .job-country
+    attribute: text
+    rule: null
+    ai_prompt: null
+    literal_value: null
+  active:
+    method: rule
+    selector: null
+    attribute: null
+    rule: end_date >= run_date -> true; else -> false
+    ai_prompt: null
+    literal_value: null
+  start_date:
+    method: selector
+    selector: .job-posted-date
+    attribute: text
+    rule: null
+    ai_prompt: null
+    literal_value: null
+  end_date:
+    method: selector
+    selector: .job-closing-date
+    attribute: text
+    rule: null
+    ai_prompt: null
+    literal_value: null
+dedup_key_fields: null
+auth:
+  login_type: none
+  login_url: null
+  username_env: null
+  password_env: null
+  username_selector: null
+  password_selector: null
+  submit_selector: null
+pagination:
+  type: next_link
+  selector: .pagination .next
+  max_pages: 5
+needs_review: false
+needs_review_reason: null

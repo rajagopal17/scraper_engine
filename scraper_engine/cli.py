@@ -4,10 +4,13 @@ import argparse
 import logging
 import sys
 
+import anthropic
+
 from . import db
 from .config import CONTEXT_FILE, SKILLS_DIR, get_settings
 from .inputs import load_context
 from .llm import LLMClient
+from .llm.client import OpenAIStatusError
 from .skill_builder import build_skill, save_skill
 
 
@@ -41,9 +44,19 @@ def main(argv: list[str] | None = None) -> int:
         if not settings.ai_api_key:
             print("AI_API_KEY is not set; cannot build a skill.", file=sys.stderr)
             return 1
-        llm = LLMClient(settings.ai_api_key, settings.ai_base_url)
+        llm = LLMClient(settings.ai_api_key, settings.ai_base_url, settings.ai_provider)
         context = load_context(CONTEXT_FILE)
-        skill = build_skill(args.url, context, settings, llm)
+        try:
+            skill = build_skill(args.url, context, settings, llm)
+        except anthropic.AuthenticationError:
+            print("AI_API_KEY was rejected by the Anthropic API (401 invalid x-api-key). Check .env.", file=sys.stderr)
+            return 1
+        except anthropic.APIError as exc:
+            print(f"AI API call failed: {exc}", file=sys.stderr)
+            return 1
+        except OpenAIStatusError as exc:
+            print(f"AI API call failed ({settings.ai_provider}, {settings.ai_base_url}): {exc}", file=sys.stderr)
+            return 1
         save_skill(skill, SKILLS_DIR)
         print(f"skill written to {SKILLS_DIR / (skill.domain + '.yaml')}")
         if skill.needs_review:

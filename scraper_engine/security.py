@@ -6,6 +6,8 @@ import time
 import urllib.robotparser
 from urllib.parse import urlparse
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 # Patterns that suggest a page is attempting to inject instructions into the AI call.
@@ -46,7 +48,12 @@ def build_safe_user_prompt(instructions: str, page_text: str) -> str:
 
 
 class RobotsChecker:
-    def __init__(self):
+    def __init__(self, timeout_seconds: float = 10.0):
+        # RobotFileParser.read() shells out to urllib.request.urlopen() with no
+        # timeout, so a robots.txt endpoint that connects but never responds
+        # hangs the whole run forever. Fetch the body ourselves (bounded) and
+        # hand RobotFileParser only the parsed lines.
+        self._timeout = timeout_seconds
         self._cache: dict[str, urllib.robotparser.RobotFileParser] = {}
 
     def is_allowed(self, url: str, user_agent: str = "*") -> bool:
@@ -57,11 +64,14 @@ class RobotsChecker:
             rp = urllib.robotparser.RobotFileParser()
             rp.set_url(f"{origin}/robots.txt")
             try:
-                rp.read()
+                resp = httpx.get(f"{origin}/robots.txt", timeout=self._timeout, follow_redirects=True)
+                if resp.status_code >= 400:
+                    rp.allow_all = True
+                else:
+                    rp.parse(resp.text.splitlines())
             except Exception:
                 logger.warning("could not fetch robots.txt for %s; defaulting to allowed", origin)
-                self._cache[origin] = rp
-                return True
+                rp.allow_all = True
             self._cache[origin] = rp
         return rp.can_fetch(user_agent, url)
 

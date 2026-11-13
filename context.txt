@@ -6,6 +6,12 @@ alleviation programs, teaching basic skills, nutrition, medical camps, forestry,
 etc., where manpower is the main input and not heavy construction like roads,
 schools, and hospitals.
 
+Job postings, consultancy postings, and vacancy announcements for roles within
+such projects (e.g. a consultant, trainer, or coordinator position on a
+non-capital-intensive project) also count as project work and should be
+extracted the same as a direct project/tender listing — do not exclude a
+listing just because it is phrased as a job or consultancy opening.
+
 Below are the fields required:
 1. project_details (not more than 1000 words)
 2. source_url

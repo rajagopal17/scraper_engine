@@ -7,3 +7,4 @@ output/*
 !output/.gitkeep
 .venv/
 *.egg-info/
+*.txt

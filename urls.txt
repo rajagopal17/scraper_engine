@@ -1,2 +1,10 @@
 # One URL per line. Lines starting with # are ignored.
 # https://example.org/ngo-projects
+https://www.developmentaid.org/tenders/search
+http://cms.adb.org
+https://www.devex.com/
+https://careerone.vn/jobs/
+https://reliefweb.int/jobs
+https://www.unwomen.org/en/about-us/programme-implementation#current
+https://ausconnect.dfat.gov.au/opportunities
+https://plan-international.org/calls-tender/

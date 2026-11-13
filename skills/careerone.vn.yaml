@@ -1,0 +1,66 @@
+url: https://careerone.vn/jobs/
+domain: careerone.vn
+created_at: '2026-11-13'
+last_verified_at: '2026-11-13'
+fetch_method: rendered
+fields:
+  project_details:
+    method: ai_judged
+    selector: table.job-table tbody tr
+    attribute: null
+    rule: null
+    ai_prompt: Extract and summarize project details from the job listings table on
+      this page, ensuring they meet the criteria of non-capital-intensive projects.
+    literal_value: null
+  source_url:
+    method: literal
+    selector: null
+    attribute: null
+    rule: null
+    ai_prompt: null
+    literal_value: https://careerone.vn/jobs/
+  region:
+    method: selector
+    selector: table.job-table tbody tr td:nth-child(4)
+    attribute: null
+    rule: null
+    ai_prompt: null
+    literal_value: null
+  active:
+    method: rule
+    selector: null
+    attribute: null
+    rule: end_date >= current_date -> true
+    ai_prompt: null
+    literal_value: null
+  start_date:
+    method: selector
+    selector: table.job-table tbody tr td:nth-child(3)
+    attribute: null
+    rule: null
+    ai_prompt: null
+    literal_value: null
+  end_date:
+    method: selector
+    selector: table.job-table tbody tr td:nth-child(3)
+    attribute: null
+    rule: null
+    ai_prompt: null
+    literal_value: null
+dedup_key_fields:
+- project_details
+- source_url
+auth:
+  login_type: none
+  login_url: null
+  username_env: null
+  password_env: null
+  username_selector: null
+  password_selector: null
+  submit_selector: null
+pagination:
+  type: next_link
+  selector: div.custom-pagination a.next
+  max_pages: 5
+needs_review: false
+needs_review_reason: null

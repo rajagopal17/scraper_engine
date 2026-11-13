@@ -1,0 +1,21 @@
+url: https://www.developmentaid.org/tenders/search
+domain: www.developmentaid.org
+created_at: '2026-11-13'
+last_verified_at: '2026-11-13'
+fetch_method: static
+fields: {}
+dedup_key_fields: null
+auth:
+  login_type: none
+  login_url: null
+  username_env: null
+  password_env: null
+  username_selector: null
+  password_selector: null
+  submit_selector: null
+pagination:
+  type: none
+  selector: null
+  max_pages: 5
+needs_review: true
+needs_review_reason: site returned 403 to a standard fetch

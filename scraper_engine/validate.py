@@ -23,7 +23,12 @@ def _parse_date(value: str) -> date | None:
             return datetime.strptime(value, fmt).date()
         except ValueError:
             continue
-    return None
+    try:
+        # AI-extracted dates often come back as full ISO-8601 datetimes
+        # (e.g. "2026-11-03T14:47:09+00:00") rather than bare dates.
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        return None
 
 
 def validate_record(data: dict) -> ValidationResult:

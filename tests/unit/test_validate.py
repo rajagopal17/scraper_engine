@@ -25,6 +25,18 @@ def test_end_before_start_is_rejected():
     assert not result.ok
 
 
+def test_iso_datetime_with_time_and_offset_is_accepted():
+    """AI extraction commonly returns full ISO-8601 datetimes rather than bare
+    dates; a real date must not be rejected just for carrying a time/offset."""
+    result = validate_record({"end_date": "2026-11-03T14:47:09+00:00"})
+    assert result.ok
+
+
+def test_end_before_start_is_rejected_with_iso_datetimes():
+    result = validate_record({"start_date": "2026-05-01T00:00:00+00:00", "end_date": "2026-01-01T00:00:00+00:00"})
+    assert not result.ok
+
+
 def test_missing_region_is_not_an_error():
     result = validate_record({"project_details": "text", "region": ""})
     assert result.ok

@@ -40,6 +40,15 @@ docker compose up -d postgres
 docker compose run --rm scraper python -m scraper_engine init-db
 ```
 
+Running the CLI from the host (e.g. inside a local `.venv`) instead of via
+`docker compose run`? Postgres is reachable at `localhost:5433` (the compose
+file maps container port 5432 to host port 5433, not 5432, to avoid clashing
+with a Postgres already installed on the host). Override before running:
+
+```bash
+POSTGRES_HOST=localhost POSTGRES_PORT=5433 python -m scraper_engine init-db
+```
+
 ## Usage
 
 ```bash

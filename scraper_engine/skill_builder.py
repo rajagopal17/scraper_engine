@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 import yaml
+from bs4 import BeautifulSoup
 
 from .config import Settings
 from .llm import LLMClient
@@ -54,15 +55,53 @@ Rules:
 """
 
 
+_MIN_CONTENT_LENGTH = 500  # below this, treat the page as effectively empty (likely JS-rendered/blocked)
+
+
 def _fetch_page_text(url: str, timeout: float) -> str:
     resp = httpx.get(url, timeout=timeout, follow_redirects=True, headers={"User-Agent": "scraper-engine-skill-builder/1.0"})
     resp.raise_for_status()
     return resp.text
 
 
+def _blocked_skill(url: str, domain: str, reason: str) -> Skill:
+    """Site refused a standard fetch (blocked/403/etc) or returned no usable
+    content even when rendered. Flag for review and stop here rather than
+    guessing selectors from nothing, or attempting to defeat a block (per
+    design: log + flag, don't route around it)."""
+    today = date.today().isoformat()
+    logger.warning("skill-build blocked for %s: %s", url, reason)
+    return Skill(url=url, domain=domain, created_at=today, last_verified_at=today, needs_review=True, needs_review_reason=reason)
+
+
 def build_skill(url: str, context: str, settings: Settings, llm: LLMClient) -> Skill:
     domain = urlparse(url).netloc
-    page_text = _fetch_page_text(url, settings.http_timeout_seconds)
+    forced_fetch_method = None
+    try:
+        page_text = _fetch_page_text(url, settings.http_timeout_seconds)
+    except httpx.HTTPStatusError as exc:
+        return _blocked_skill(url, domain, f"site returned {exc.response.status_code} to a standard fetch")
+    except httpx.HTTPError as exc:
+        return _blocked_skill(url, domain, f"could not fetch page: {exc}")
+
+    if len(page_text.strip()) < _MIN_CONTENT_LENGTH:
+        # Static fetch came back empty/near-empty: almost certainly a JS-rendered
+        # page. Never hand an LLM empty content and trust whatever it invents —
+        # retry with a real rendered fetch before giving up.
+        logger.info("static fetch for %s returned only %d chars; retrying with a rendered fetch", url, len(page_text.strip()))
+        try:
+            from .fetch import fetch_rendered
+
+            rendered_html = fetch_rendered(url, settings)
+        except Exception as exc:  # noqa: BLE001 - any render failure just means we can't build this skill yet
+            return _blocked_skill(url, domain, f"static fetch returned no content, and rendered fetch failed: {exc}")
+
+        rendered_text = BeautifulSoup(rendered_html, "html.parser").get_text(separator="\n", strip=True)
+        if len(rendered_text) < _MIN_CONTENT_LENGTH:
+            return _blocked_skill(url, domain, "page returned no usable content from either a static or rendered fetch")
+        page_text = rendered_text
+        forced_fetch_method = "rendered"
+
     # Keep the prompt bounded; page text can be large.
     truncated_page = page_text[:20000]
 
@@ -100,7 +139,7 @@ def build_skill(url: str, context: str, settings: Settings, llm: LLMClient) -> S
         domain=domain,
         created_at=today,
         last_verified_at=today,
-        fetch_method=parsed.get("fetch_method", "static"),
+        fetch_method=forced_fetch_method or parsed.get("fetch_method", "static"),
         fields=fields,
         dedup_key_fields=parsed.get("dedup_key_fields"),
         auth=auth,

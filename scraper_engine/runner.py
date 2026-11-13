@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 def run_all(settings: Settings, only_url: str | None = None) -> None:
     urls = [only_url] if only_url else load_urls(URLS_FILE)
     context = load_context(CONTEXT_FILE)
-    robots = RobotsChecker()
+    robots = RobotsChecker(settings.http_timeout_seconds)
     rate_limiter = DomainRateLimiter(settings.rate_limit_seconds_per_domain)
     budget = AiCallBudget(settings.max_ai_calls_per_site_per_run, settings.max_ai_calls_per_run)
-    llm = LLMClient(settings.ai_api_key, settings.ai_base_url) if settings.ai_api_key else None
+    llm = LLMClient(settings.ai_api_key, settings.ai_base_url, settings.ai_provider) if settings.ai_api_key else None
 
     all_merged_records: list[dict] = []
 
